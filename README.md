@@ -10,6 +10,7 @@ agent recognises you.
 | **API base URL** | https://api-production-5801.up.railway.app |
 | **Dashboard** | https://api-production-5801.up.railway.app/dashboard |
 | **Interactive API docs** | https://api-production-5801.up.railway.app/docs |
+| **API access** | `/patients*` requires the header `X-API-Key: <key>` (key supplied with the submission). The dashboard asks for it once. `/health` is open; `/voice/webhook` uses its own secret. |
 | **Test notes** | Demo data is fictional (HIPAA out of scope). Seed patients: Alex Rivera (212-555-0101), Priya Natarajan (415-555-0134). |
 
 ## Architecture
@@ -101,10 +102,10 @@ All responses use `{ "data": ..., "error": null, "meta": ... }`; errors use
 | POST | `/voice/webhook` | Voice platform only (secret-protected) |
 
 ```bash
-curl -X POST $BASE/patients -H 'content-type: application/json' -d '{
+curl -X POST $BASE/patients -H 'content-type: application/json' -H "X-API-Key: $API_KEY" -d '{
   "first_name":"Jane","last_name":"Doe","date_of_birth":"03/14/1985","sex":"Female",
   "phone_number":"(212) 555-0188","address_line_1":"1 Main St","city":"Brooklyn","state":"NY","zip_code":"11201"}'
-curl "$BASE/patients?last_name=doe"
+curl "$BASE/patients?last_name=doe" -H "X-API-Key: $API_KEY"
 ```
 
 Phone numbers are stored as 10 digits; dates are stored as `DATE` and rendered `MM/DD/YYYY`;
