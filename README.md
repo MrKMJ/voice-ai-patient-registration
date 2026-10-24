@@ -6,7 +6,7 @@ agent recognises you.
 
 | | |
 |---|---|
-| **Phone number** | _fill in after provisioning, see [DEPLOYMENT.md](DEPLOYMENT.md)_ |
+| **Phone number** | **+1 (213) 727-7177** |
 | **API base URL** | https://api-production-5801.up.railway.app |
 | **Dashboard** | https://api-production-5801.up.railway.app/dashboard |
 | **Interactive API docs** | https://api-production-5801.up.railway.app/docs |

@@ -36,7 +36,7 @@ def build_assistant_config(settings: Settings, *, public_base_url: str, webhook_
     tools.append({"type": "endCall"})  # lets the model hang up after the goodbye
 
     return {
-        "name": f"{settings.clinic_name} - Patient Registration",
+        "name": f"{settings.clinic_name} Intake"[:40],  # Vapi caps names at 40 characters
         "firstMessage": build_first_message(settings.clinic_name),
         "firstMessageMode": "assistant-speaks-first",
         "model": {

@@ -33,7 +33,13 @@ def call_vapi(method: str, path: str, api_key: str, body: dict | None = None) ->
         VAPI_API + path,
         method=method,
         data=json.dumps(body).encode() if body is not None else None,
-        headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"},
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            # Vapi sits behind Cloudflare, which rejects urllib's default User-Agent (error 1010).
+            "User-Agent": "patient-voice-agent-setup/1.0",
+        },
     )
     try:
         with urllib.request.urlopen(request, timeout=30) as response:
