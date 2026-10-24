@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Patient Registrations</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --text: #1b2430; --muted: #627083;
+    --line: #e3e7ed; --accent: #1f6feb; --accent-soft: #e8f0fe; --danger: #b42318;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f141a; --card: #18202a; --text: #e6ebf1; --muted: #93a1b3;
+      --line: #263140; --accent: #6aa5ff; --accent-soft: #1b2b45; --danger: #ff8a80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+         font: 15px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { padding: 20px 16px 8px; max-width: 1100px; margin: 0 auto; }
+  h1 { margin: 0; font-size: 22px; }
+  .sub { color: var(--muted); margin-top: 2px; }
+  main { max-width: 1100px; margin: 0 auto; padding: 8px 16px 40px; }
+  .bar { display: flex; gap: 12px; align-items: center; margin: 12px 0; flex-wrap: wrap; }
+  input[type=search] { flex: 1 1 240px; padding: 9px 12px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--card); color: var(--text); font: inherit; }
+  .count { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+  th { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--accent-soft); }
+  tr:last-child td { border-bottom: 0; }
+  .empty, .error { padding: 28px; text-align: center; color: var(--muted); }
+  .error { color: var(--danger); }
+  .detail { padding: 16px 18px; border-top: 1px solid var(--line); background: var(--bg); }
+  .detail h2 { margin: 0 0 8px; font-size: 16px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 8px 20px; }
+  .grid dt { font-size: 12px; color: var(--muted); }
+  .grid dd { margin: 0 0 6px; word-break: break-word; }
+  pre { white-space: pre-wrap; background: var(--card); border: 1px solid var(--line);
+        border-radius: 8px; padding: 10px; max-height: 240px; overflow: auto; font: 13px/1.5 ui-monospace, monospace; }
+  button { font: inherit; padding: 6px 12px; border-radius: 8px; border: 1px solid var(--line);
+           background: var(--card); color: var(--text); cursor: pointer; }
+  @media (max-width: 640px) { .hide-sm { display: none; } }
+</style>
+</head>
+<body>
+<header>
+  <h1>Patient Registrations</h1>
+  <div class="sub">Records collected by the phone agent. Refreshes every 10 seconds.</div>
+</header>
+<main>
+  <div class="bar">
+    <input id="q" type="search" placeholder="Search name, phone, or date of birth" aria-label="Search patients">
+    <span id="count" class="count"></span>
+    <button id="refresh" type="button">Refresh</button>
+  </div>
+  <div class="card" id="card"><div class="empty">Loading…</div></div>
+</main>
+<script>
+  const card = document.getElementById("card");
+  const q = document.getElementById("q");
+  const countEl = document.getElementById("count");
+  let patients = [];
+  let openId = null;
+
+  const el = (tag, props = {}, ...kids) => {
+    const node = Object.assign(document.createElement(tag), props);
+    kids.flat().forEach(k => node.append(k));
+    return node;
+  };
+  const phone = p => p ? `(${p.slice(0,3)}) ${p.slice(3,6)}-${p.slice(6)}` : "";
+
+  function headers() {
+    let key = ""; try { key = sessionStorage.getItem("apiKey") || ""; } catch (e) {}
+    return key ? { "X-API-Key": key } : {};
+  }
+
+  async function api(path) {
+    let res = await fetch(path, { headers: headers() });
+    if (res.status === 401) {
+      const key = prompt("This server requires an API key:");
+      if (key) { try { sessionStorage.setItem("apiKey", key); } catch (e) {} }
+      res = await fetch(path, { headers: headers() });
+    }
+    const body = await res.json();
+    if (!res.ok) throw new Error(body.error ? body.error.message : res.statusText);
+    return body.data;
+  }
+
+  function matches(p, term) {
+    if (!term) return true;
+    const hay = `${p.first_name} ${p.last_name} ${p.phone_number} ${phone(p.phone_number)} ${p.date_of_birth}`.toLowerCase();
+    return hay.includes(term.toLowerCase());
+  }
+
+  function render() {
+    const rows = patients.filter(p => matches(p, q.value.trim()));
+    countEl.textContent = `${rows.length} of ${patients.length} patients`;
+    if (!rows.length) { card.replaceChildren(el("div", { className: "empty", textContent: "No patients found." })); return; }
+    const tbody = el("tbody");
+    rows.forEach(p => {
+      const tr = el("tr", { onclick: () => toggle(p.patient_id) },
+        el("td", { textContent: `${p.first_name} ${p.last_name}` }),
+        el("td", { textContent: p.date_of_birth }),
+        el("td", { textContent: phone(p.phone_number) }),
+        el("td", { className: "hide-sm", textContent: `${p.city}, ${p.state}` }),
+        el("td", { className: "hide-sm", textContent: new Date(p.created_at).toLocaleString() }));
+      tbody.append(tr);
+      if (openId === p.patient_id) tbody.append(el("tr", {}, el("td", { colSpan: 5, style: "padding:0" }, el("div", { className: "detail", id: "detail" }, "Loading…"))));
+    });
+    const table = el("table", {}, el("thead", {}, el("tr", {},
+      ["Name", "Date of birth", "Phone"].map(h => el("th", { textContent: h })),
+      ["City", "Registered"].map(h => el("th", { className: "hide-sm", textContent: h })))), tbody);
+    card.replaceChildren(table);
+    if (openId) loadDetail(openId);
+  }
+
+  const LABELS = { patient_id: "Patient ID", sex: "Sex", email: "Email", address_line_1: "Address",
+    address_line_2: "Unit", insurance_provider: "Insurance", insurance_member_id: "Member ID",
+    preferred_language: "Language", emergency_contact_name: "Emergency contact",
+    emergency_contact_phone: "Emergency phone", zip_code: "ZIP", updated_at: "Updated" };
+
+  async function loadDetail(id) {
+    const box = document.getElementById("detail");
+    if (!box) return;
+    try {
+      const [p, calls, appts] = await Promise.all([api(`/patients/${id}`), api(`/patients/${id}/calls`), api(`/patients/${id}/appointments`)]);
+      const dl = el("dl", { className: "grid" });
+      Object.keys(LABELS).forEach(k => {
+        let v = p[k]; if (!v) return;
+        if (k.endsWith("phone")) v = phone(v);
+        if (k === "updated_at") v = new Date(v).toLocaleString();
+        dl.append(el("div", {}, el("dt", { textContent: LABELS[k] }), el("dd", { textContent: v })));
+      });
+      const kids = [el("h2", { textContent: `${p.first_name} ${p.last_name}` }), dl];
+      appts.forEach(a => kids.push(el("p", { textContent: `Appointment: ${new Date(a.scheduled_for).toLocaleString([], { dateStyle: "full", timeStyle: "short" })} with ${a.provider}` })));
+      calls.forEach(c => {
+        kids.push(el("h2", { textContent: "Call summary" }));
+        if (c.summary) kids.push(el("p", { textContent: c.summary }));
+        if (c.transcript) kids.push(el("pre", { textContent: c.transcript }));
+      });
+      box.replaceChildren(...kids);
+    } catch (e) { box.textContent = e.message; }
+  }
+
+  function toggle(id) { openId = openId === id ? null : id; render(); }
+
+  async function load() {
+    try {
+      patients = await api("/patients?limit=500");
+      render();
+    } catch (e) { card.replaceChildren(el("div", { className: "error", textContent: e.message })); }
+  }
+
+  q.addEventListener("input", render);
+  document.getElementById("refresh").addEventListener("click", load);
+  load();
+  setInterval(() => { if (!document.hidden && !q.value) load(); }, 10000);
+</script>
+</body>
+</html>

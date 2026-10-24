@@ -1,0 +1,23 @@
+# Render blueprint: web service + managed Postgres. "New > Blueprint" and point at the repo.
+# Note: Render's free Postgres expires after 30 days - fine for a review, not for keeping data.
+services:
+  - type: web
+    name: patient-voice-agent
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: patient-db
+          property: connectionString
+      - key: VAPI_WEBHOOK_SECRET
+        generateValue: true   # copy the generated value into your local .env before running the script
+
+databases:
+  - name: patient-db
+    plan: free
