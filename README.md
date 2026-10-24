@@ -7,9 +7,9 @@ agent recognises you.
 | | |
 |---|---|
 | **Phone number** | _fill in after provisioning, see [DEPLOYMENT.md](DEPLOYMENT.md)_ |
-| **API base URL** | _e.g. `https://your-app.up.railway.app`_ |
-| **Dashboard** | `<API base URL>/dashboard` |
-| **Interactive API docs** | `<API base URL>/docs` |
+| **API base URL** | https://api-production-5801.up.railway.app |
+| **Dashboard** | https://api-production-5801.up.railway.app/dashboard |
+| **Interactive API docs** | https://api-production-5801.up.railway.app/docs |
 | **Test notes** | Demo data is fictional (HIPAA out of scope). Seed patients: Alex Rivera (212-555-0101), Priya Natarajan (415-555-0134). |
 
 ## Architecture
