@@ -78,3 +78,12 @@ def test_member_id_alphanumeric():
     assert v.validate_field("insurance_member_id", "xjk-482 910") == "XJK482910"
     with pytest.raises(ValueError):
         v.validate_field("insurance_member_id", "abc!123")
+
+
+def test_non_latin_names_ask_for_spelling():
+    """Regression: a mis-detected language produced Devanagari names in a live call."""
+    with pytest.raises(ValueError, match="letter by letter"):
+        v.validate_field("first_name", "क्वाजा महिनुद्दीन")
+    assert v.validate_field("first_name", "José") == "José"
+    with pytest.raises(ValueError, match="only contain letters"):
+        v.validate_field("first_name", "R2D2")

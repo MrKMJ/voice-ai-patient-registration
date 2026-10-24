@@ -34,6 +34,13 @@ class Settings(BaseSettings):
     vapi_voice_id: str = "alloy"
     vapi_llm_provider: str = "openai"
     vapi_llm_model: str = "gpt-4o"
+    # "en" is the most reliable for U.S. callers. "multi" adds Spanish but can mis-detect
+    # accented English as another language (see app/voice/prompt.py).
+    vapi_transcriber_language: str = "en"
+
+    @property
+    def bilingual(self) -> bool:
+        return self.vapi_transcriber_language == "multi"
 
     @property
     def is_production(self) -> bool:

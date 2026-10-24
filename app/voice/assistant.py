@@ -37,18 +37,24 @@ def build_assistant_config(settings: Settings, *, public_base_url: str, webhook_
 
     return {
         "name": f"{settings.clinic_name} Intake"[:40],  # Vapi caps names at 40 characters
-        "firstMessage": build_first_message(settings.clinic_name),
+        "firstMessage": build_first_message(settings.clinic_name, bilingual=settings.bilingual),
         "firstMessageMode": "assistant-speaks-first",
         "model": {
             "provider": settings.vapi_llm_provider,
             "model": settings.vapi_llm_model,
             "temperature": 0.4,  # low: reliable field capture, still conversational
-            "messages": [{"role": "system", "content": build_system_prompt(settings.clinic_name)}],
+            "messages": [{
+                "role": "system",
+                "content": build_system_prompt(settings.clinic_name, bilingual=settings.bilingual),
+            }],
             "tools": tools,
         },
         "voice": {"provider": settings.vapi_voice_provider, "voiceId": settings.vapi_voice_id},
-        # "multi" lets Deepgram handle English and Spanish in the same call.
-        "transcriber": {"provider": "deepgram", "model": "nova-3", "language": "multi"},
+        "transcriber": {
+            "provider": "deepgram",
+            "model": "nova-3",
+            "language": settings.vapi_transcriber_language,
+        },
         "server": server,
         "serverMessages": ["tool-calls", "end-of-call-report", "status-update"],
         "silenceTimeoutSeconds": 30,

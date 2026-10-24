@@ -48,7 +48,7 @@ Separation of concerns:
 2. The LLM collects fields conversationally. After risky fields (phone, date of birth, state,
    ZIP, email, IDs) it calls `validate_field`. Invalid values come back with a speakable message
    ("That number only had seven digits...") and the agent re-asks *only that field*.
-3. Once a phone number is valid, `lookup_patient` detects a returning caller:
+3. Validating the phone number also checks for a returning caller (chained server-side, so the model can't skip it):
    *"It looks like we already have a record for Jane Davis. Would you like to update your information instead?"*
    Updating requires the date of birth on file (3 failed attempts lock updates for that call).
 4. Required fields done -> optional offer (insurance, emergency contact, language, email) -> a
@@ -63,8 +63,7 @@ The prompt (fully commented in `app/voice/prompt.py`) is built around how phone 
 
 * **Voice-first style**: 1-2 short sentences, one question at a time, digits grouped, dates spoken.
 * **Flexible slot filling**: the caller can volunteer anything in any order; the agent only asks for what is missing.
-* **Corrections** ("it's D-A-V-I-S"), **interruptions**, **"start over"**, **Spanish** (`Hablo español`
-  switches language for the rest of the call) and **wants-a-human** are each handled explicitly.
+* **Corrections** ("it's D-A-V-I-S"), **interruptions**, **"start over"**, **Spanish** (opt-in, see below) and **wants-a-human** are each handled explicitly.
 * **Never save without a read-back and a clear yes.**
 * **Tool results carry an `instruction`**: edge-case behaviour (re-ask only field X, apologise and retry,
   offer an update) lives in tested server code, not just in prose the model might skip.
@@ -119,7 +118,7 @@ python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\
 pip install -r requirements-dev.txt
 cp .env.example .env                                   # then edit; set VAPI_WEBHOOK_SECRET
 uvicorn app.main:app --reload                          # http://localhost:8000/dashboard
-pytest                                                 # 50 tests, no network needed
+pytest                                                 # 54 tests, no network needed
 ```
 
 To test the real phone flow locally, expose the port (`ngrok http 8000` or
@@ -142,6 +141,7 @@ python scripts/create_vapi_assistant.py --buy-number 415   # create assistant + 
 | `SEED_DEMO_DATA` | `false` | Insert two fictional patients into an empty DB |
 | `LOG_LEVEL` / `LOG_PII` | `INFO` / `true` | `LOG_PII=false` masks patient data in logs |
 | `CLINIC_NAME` | Riverside Family Clinic | Used in the prompt and greeting |
+| `VAPI_TRANSCRIBER_LANGUAGE` | `en` | `multi` enables Spanish (script-only; may mis-hear accented English) |
 | `PUBLIC_BASE_URL`, `VAPI_API_KEY`, `VAPI_ASSISTANT_ID`, `VAPI_VOICE_*`, `VAPI_LLM_*` | | Only for `scripts/create_vapi_assistant.py` |
 
 No secrets are in the source; `.env` is git-ignored.
@@ -149,8 +149,8 @@ No secrets are in the source; `.env` is git-ignored.
 ## Tech stack and why
 
 * **Vapi** - fastest path to a real dialable number with STT/TTS, barge-in and tool calling handled;
-  lets the effort go into prompt, tools and data integrity. Deepgram `nova-3` (`multi`) covers English
-  and Spanish; GPT-4o is the default LLM and is a one-line change (`VAPI_LLM_*`).
+  lets the effort go into prompt, tools and data integrity. Deepgram `nova-3` handles speech-to-text
+  (English by default, `multi` for Spanish); GPT-4o is the default LLM and is a one-line change (`VAPI_LLM_*`).
 * **FastAPI + Pydantic v2** - typed validation gives clean 422s, free OpenAPI docs at `/docs`.
 * **SQLAlchemy 2 + PostgreSQL** (SQLite for local/dev) - relational constraints fit a fixed
   demographic schema; the same code runs on both.

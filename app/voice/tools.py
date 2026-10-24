@@ -152,17 +152,19 @@ def validate_field(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
                 f"{FIELD_LABELS[field]} only."
             ),
         }
-    return {"valid": True, "field": field, **_present(field, normalized)}
+    result = {"valid": True, "field": field, **_present(field, normalized)}
+    if field == "phone_number":
+        # Chain the returning-caller check onto phone validation so it cannot be skipped
+        # (in a live test the model never called lookup_patient on its own).
+        result.update(_returning_caller(ctx, normalized))
+    return result
 
 
-def lookup_patient(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
-    try:
-        phone = FIELD_VALIDATORS["phone_number"](args.get("phone_number"))
-    except ValueError as exc:
-        return {"found": False, "valid": False, "message": str(exc)}
+def _returning_caller(ctx: ToolContext, phone: str) -> dict[str, Any]:
+    """Names (only) of the most recent patient on this phone number, plus what to say."""
     matches = patient_service.find_by_phone(ctx.db, phone)
     if not matches:
-        return {"found": False, "valid": True}
+        return {"found": False}
     patient = matches[0]
     return {
         "found": True,
@@ -170,13 +172,21 @@ def lookup_patient(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
         "first_name": patient.first_name,
         "last_name": patient.last_name,
         "instruction": (
-            f"Say: \"It looks like we already have a record for {patient.first_name} "
-            f"{patient.last_name}. Would you like to update your information instead?\" "
-            "If they say yes, ask for their date of birth to verify identity, then use "
-            "update_patient. If they say they are a different person, carry on registering "
-            "a new patient."
+            f"RETURNING CALLER. Say: \"It looks like we already have a record for "
+            f"{patient.first_name} {patient.last_name}. Would you like to update your "
+            "information instead?\" If they say yes, ask for their date of birth to verify "
+            "identity, then use update_patient. If they say they are a different person, "
+            "carry on registering a new patient."
         ),
     }
+
+
+def lookup_patient(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:
+    try:
+        phone = FIELD_VALIDATORS["phone_number"](args.get("phone_number"))
+    except ValueError as exc:
+        return {"found": False, "valid": False, "message": str(exc)}
+    return {"valid": True, **_returning_caller(ctx, phone)}
 
 
 def save_patient(ctx: ToolContext, args: dict[str, Any]) -> dict[str, Any]:

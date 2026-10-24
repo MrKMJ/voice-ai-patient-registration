@@ -233,3 +233,37 @@ def test_assistant_config_matches_tools(settings):
     save = next(t for t in cfg["model"]["tools"] if t.get("function", {}).get("name") == "save_patient")
     assert "first_name" in save["function"]["parameters"]["required"]
     json.dumps(cfg)  # serialisable
+
+
+def test_phone_validation_flags_returning_caller_automatically(client):
+    """Regression: in a live call the model never called lookup_patient by itself."""
+    fresh = tool(client, "validate_field", {"field": "phone_number", "value": "2125550134"}, call_id="c1")
+    assert fresh["valid"] and fresh["found"] is False
+
+    tool(client, "save_patient", SAVE_ARGS, call_id="c1")
+    again = tool(client, "validate_field", {"field": "phone_number", "value": "212 555 0134"}, call_id="c2")
+    assert again["valid"] and again["found"] is True
+    assert again["first_name"] == "Jane" and "RETURNING CALLER" in again["instruction"]
+    assert "date_of_birth" not in again
+
+    other_field = tool(client, "validate_field", {"field": "emergency_contact_phone", "value": "2125550134"}, call_id="c2")
+    assert "found" not in other_field  # only the caller's own number triggers the check
+
+
+def test_transcriber_language_controls_spanish_support(settings):
+    english = build_assistant_config(settings, public_base_url="https://x.example", webhook_secret="s")
+    assert english["transcriber"]["language"] == "en"
+    assert "only supports English" in english["model"]["messages"][0]["content"]
+    assert "Spanish" not in english["firstMessage"]
+
+    settings.vapi_transcriber_language = "multi"
+    multi = build_assistant_config(settings, public_base_url="https://x.example", webhook_secret="s")
+    assert multi["transcriber"]["language"] == "multi"
+    assert "Hablo" in multi["model"]["messages"][0]["content"]
+    assert "Spanish" in multi["firstMessage"]
+
+
+def test_prompt_forbids_guessing():
+    from app.voice.prompt import build_system_prompt
+    prompt = build_system_prompt("Test Clinic")
+    assert "NEVER GUESS" in prompt and "mail" in prompt

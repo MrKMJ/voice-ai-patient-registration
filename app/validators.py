@@ -10,6 +10,7 @@ agent relays these messages verbatim when it re-prompts for a field.
 from __future__ import annotations
 
 import re
+import unicodedata
 from datetime import date, datetime, timezone
 from typing import Any, Callable
 
@@ -115,12 +116,25 @@ def _text(value: Any, field: str, *, max_len: int, min_len: int = 1) -> str:
     return text
 
 
+def _has_non_latin_letters(text: str) -> bool:
+    """True for e.g. Devanagari/Arabic script, which speech-to-text emits for mis-detected languages."""
+    return any(
+        unicodedata.category(ch)[0] in "LM" and "LATIN" not in unicodedata.name(ch, "")
+        for ch in text
+    )
+
+
 def _person_name(field: str, max_len: int) -> Callable[[Any], str]:
     label = FIELD_LABELS[field]
 
     def validate(value: Any) -> str:
         text = _text(value, field, max_len=max_len)
         if not _NAME_RE.fullmatch(text):
+            if _has_non_latin_letters(text):
+                raise ValueError(
+                    f"I couldn't make out the {label} in English letters. "
+                    "Please spell it out letter by letter."
+                )
             raise ValueError(
                 f"The {label} can only contain letters, hyphens and apostrophes."
             )
