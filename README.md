@@ -203,3 +203,14 @@ app/
 scripts/             create_vapi_assistant.py, entrypoint.sh
 tests/               validators, REST API, voice webhook/tool flows
 ```
+
+---
+
+## Hire me to build this for you
+
+Need a voice agent or chatbot that talks to your own database or booking system? I build these through Fiverr.
+
+- [Custom RAG AI chatbot trained on your business data](https://www.fiverr.com/moinjamal/develop-custom-ai-chatbots-and-automate-your-business-tasks)
+- [Django REST API + React web app for your AI or SaaS product](https://www.fiverr.com/moinjamal/build-a-django-rest-api-and-react-web-app-for-your-ai-or-saas-product)
+
+[![Hire me on Fiverr](https://img.shields.io/badge/Hire_me_on-Fiverr-1DBF73?style=for-the-badge&logo=fiverr&logoColor=white)](https://www.fiverr.com/moinjamal)
